@@ -11,18 +11,11 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 
-import com.microsoft.windowsazure.services.core.storage.CloudStorageAccount;
-import com.microsoft.windowsazure.services.core.storage.StorageException;
-import com.microsoft.windowsazure.services.queue.client.CloudQueue;
-import com.microsoft.windowsazure.services.queue.client.CloudQueueClient;
-import com.microsoft.windowsazure.services.queue.client.CloudQueueMessage;
-import com.microsoft.windowsazure.services.table.client.CloudTableClient;
-import com.microsoft.windowsazure.services.table.client.TableOperation;
+import edu.csd.database.HBaseInstance;
+import edu.csd.queue.RabbitMQInstance;
 
 public class ImageSorter {
 
-	public static final String storageConnectionString = "UseDevelopmentStorage=true";
-	private static CloudQueue queue;
 	private final static String imageSorterNodesQueue = "imagesorterqueue";
 	private final static String imageSorterToGlobalImageSorterQueue = "imagesortertoglobalqueue";
 	private final static String priorityIndexTable = "priorityindex";
@@ -37,15 +30,12 @@ public class ImageSorter {
 		priorityIndex = new ArrayList<>();
 		// initialize the imagesorterqueue which retrieves the message from
 		// the priorityindexer
-		initialize();
+		RabbitMQInstance rmq = new RabbitMQInstance(imageSorterNodesQueue);
 		while (true) {
-			try {
-				CloudQueueMessage message = queue.retrieveMessage();
+				String message = rmq.getMessage();
 				if (message != null) {
-					queue.deleteMessage(message);
-					String json = message.getMessageContentAsString();
 					// parse json string
-					Object obj = JSONValue.parse(json);
+					Object obj = JSONValue.parse(message);
 					JSONObject jsonObject = (JSONObject) obj;
 					datasetName = (String) jsonObject.get("dataset");
 					int startImageId = (Integer) jsonObject.get("startImageId");
@@ -95,131 +85,50 @@ public class ImageSorter {
 					// Send the L^{(m)} to the global image sorter
 					sendMessageToGlobalImageSorter();
 				}
-			} catch (StorageException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+
 		}
 
 	}
 
 	private static void sendMessageToGlobalImageSorter() {
-		try {
-			// Retrieve storage account from connection-string
-			// (The storage connection string needs to be changed in case of
-			// cloud infrastructure
-			// is used instead of emulator)
-			CloudStorageAccount storageAccount = CloudStorageAccount
-					.parse(storageConnectionString);
+
 
 			// Create the queue client
-			CloudQueueClient queueClient = storageAccount
-					.createCloudQueueClient();
-
-			// Retrieve a reference to a queue
-			CloudQueue queue = queueClient
-					.getQueueReference(imageSorterToGlobalImageSorterQueue);
-
-			// Create the queue if it doesn't already exist
-			queue.createIfNotExist();
-
+			RabbitMQInstance rmq = new RabbitMQInstance(imageSorterToGlobalImageSorterQueue);
+			
 			// Convert the list with the cardinality values to json string
 			String jsonString = JSONValue.toJSONString(L);
 
 			// Send the Message
-			CloudQueueMessage message = new CloudQueueMessage(jsonString);
-			queue.addMessage(message);
+			rmq.sendMessage(jsonString);
 
-		} catch (InvalidKeyException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (StorageException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+	
 	}
 
 	private static void retrieveThePriorityIndexer() {
-		// Retrieve storage account from connection-string
-		CloudStorageAccount storageAccount;
-		try {
-			storageAccount = CloudStorageAccount.parse(storageConnectionString);
-			// Create the table client.
-			CloudTableClient tableClient = storageAccount
-					.createCloudTableClient();
-
-			TableOperation retrieveEntity = TableOperation.retrieve(
-					datasetName, datasetName, PriorityIndexTableEntity.class);
-			PriorityIndexTableEntity entity = tableClient.execute(
-					priorityIndexTable, retrieveEntity).getResultAsType();
-			// parse json string
-			Object obj = JSONValue.parse(entity.getPriorityIndexJson());
-			JSONArray array = (JSONArray) obj;
-			for (int i = 0; i < array.size(); i++) {
-				priorityIndex.add((PriorityIndexValue) array.get(i));
-			}
-
-		} catch (InvalidKeyException | URISyntaxException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (StorageException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		HBaseInstance hbi = new HBaseInstance(datasetName + "priority");
+		List<String> priorityIndexList = hbi.retrievePriorityIndex();
+		String priorityIndexString = priorityIndexList.get(0);
+		String[] priorityIndexSplit = priorityIndexString.split(",");
+		for (int i = 0; i < priorityIndexSplit.length; i++) {
+			priorityIndex.add(new PriorityIndexValue(0, Integer
+					.parseInt(priorityIndexSplit[i])));
 		}
 
 	}
 
 	private static void retrieveTheDescriptorVectors(int startImageId,
 			int stopImageId) {
-		// Retrieve storage account from connection-string
-		CloudStorageAccount storageAccount;
-		try {
-			storageAccount = CloudStorageAccount.parse(storageConnectionString);
-			// Create the table client.
-			CloudTableClient tableClient = storageAccount
-					.createCloudTableClient();
+		HBaseInstance hbi = new HBaseInstance(datasetName);
+		List<String> descriptorVectors = hbi.retrieveDescriptorVector(
+				startImageId, stopImageId);
 
-			for (int i = startImageId; i <= stopImageId; i++) {
-				TableOperation retrieveEntity = TableOperation.retrieve(
-						datasetName, Integer.toString(i),
-						DescriptorVectorEntity.class);
-				DescriptorVectorEntity entity = tableClient.execute(
-						datasetName, retrieveEntity).getResultAsType();
-				descriptorList.add(entity);
-			}
-		} catch (InvalidKeyException | URISyntaxException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (StorageException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		int counter = 0;
+		for (int i = startImageId; i <= stopImageId; i++) {
+			DescriptorVectorEntity entity = new DescriptorVectorEntity(
+					datasetName, i, descriptorVectors.get(counter++));
+			descriptorList.add(entity);
 		}
 
-	}
-
-	private static void initialize() {
-		// Retrieve storage account from connection-string
-		CloudStorageAccount storageAccount;
-		try {
-			storageAccount = CloudStorageAccount.parse(storageConnectionString);
-			// Create the queue client
-			CloudQueueClient queueClient = storageAccount
-					.createCloudQueueClient();
-
-			// Retrieve a reference to a queue
-			queue = queueClient.getQueueReference(imageSorterNodesQueue);
-		} catch (InvalidKeyException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (StorageException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
 	}
 }

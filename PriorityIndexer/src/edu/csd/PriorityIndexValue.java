@@ -8,7 +8,6 @@ public class PriorityIndexValue implements Comparable<PriorityIndexValue>{
 	public PriorityIndexValue(int cardinalityValue, int dimension) {
 		this.cardinalityValue = cardinalityValue;
 		this.dimension = dimension;
-		entity = new PriorityIndexValue(cardinalityValue, dimension);
 	}
 	
 	public int getCardinalityValue() {

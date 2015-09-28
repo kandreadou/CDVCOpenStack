@@ -1,15 +1,12 @@
 package edu.csd;
 
-import com.microsoft.windowsazure.services.table.client.TableServiceEntity;
 
-public class DescriptorVectorEntity extends TableServiceEntity{
+public class DescriptorVectorEntity{
 	private String fileName;
 	private int id;
 	private String vector;
 	
 	public DescriptorVectorEntity(String filename, int id, String vector) {
-		this.partitionKey = filename;
-		this.rowKey = Integer.toString(id);
 		this.fileName = filename;
 		this.id = id;
 		this.vector = vector;

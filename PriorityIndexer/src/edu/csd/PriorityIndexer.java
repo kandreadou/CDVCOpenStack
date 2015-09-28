@@ -1,27 +1,20 @@
 package edu.csd;
 
-import java.net.URISyntaxException;
-import java.security.InvalidKeyException;
+import java.io.InterruptedIOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.hadoop.hbase.client.RetriesExhaustedWithDetailsException;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 
-import com.microsoft.windowsazure.services.core.storage.CloudStorageAccount;
-import com.microsoft.windowsazure.services.core.storage.StorageException;
-import com.microsoft.windowsazure.services.queue.client.CloudQueue;
-import com.microsoft.windowsazure.services.queue.client.CloudQueueClient;
-import com.microsoft.windowsazure.services.queue.client.CloudQueueMessage;
-import com.microsoft.windowsazure.services.table.client.CloudTableClient;
-import com.microsoft.windowsazure.services.table.client.TableOperation;
+import edu.csd.database.HBaseInstance;
+import edu.csd.queue.RabbitMQInstance;
 
 public class PriorityIndexer {
 
-	private static CloudQueue schedulerQueue, dvcQueue;
-	public static final String storageConnectionString = "UseDevelopmentStorage=true";
 	private final static String priorityIndexQueue = "priorityindexqueue";
 	private final static String dvcPriorityIndexQueue = "dvcpriorityindexqueue";
 	private final static String imageSorterNodesQueue = "imagesorterqueue";
@@ -29,23 +22,19 @@ public class PriorityIndexer {
 	private static List<List<Integer>> cardinalityValuesList;
 	private static List<PriorityIndexValue> priorityIndex;
 	private static String datasetName;
-	private final static String priorityIndexTable = "priorityindex";
 	private static int numOfImages, numberOfImageSorterNodes = 2;
 
 	public static void main(String[] args) {
 		// initialize the priorityindexqueue which retrieves the message from
 		// the scheduler
-		initialize(true);
+		RabbitMQInstance schedulerRMQ = new RabbitMQInstance(priorityIndexQueue);
 
 		while (true) {
-			try {
-				CloudQueueMessage message = schedulerQueue.retrieveMessage();
+				
+				String message = schedulerRMQ.getMessage();
 				if (message != null) {
-					schedulerQueue.deleteMessage(message);
-					String json = message.getMessageContentAsString();
-
 					// parse json string
-					Object obj = JSONValue.parse(json);
+					Object obj = JSONValue.parse(message);
 					JSONObject jsonObject = (JSONObject) obj;
 					datasetName = (String) jsonObject.get("dataset");
 					int numOfC = (Integer) jsonObject.get("numOfC");
@@ -54,16 +43,13 @@ public class PriorityIndexer {
 					cardinalityValuesList = new ArrayList<>();
 					// initialize the dvcpriorityindexqueue which retrieves the
 					// L^{(m)}
-					initialize(false);
+					RabbitMQInstance dvcRMQ = new RabbitMQInstance(dvcPriorityIndexQueue);
 
 					while (cardinalityValuesList.size() != numOfC) {
-						message = dvcQueue.retrieveMessage();
+						message = dvcRMQ.getMessage();
 						if (message != null) {
-							dvcQueue.deleteMessage(message);
-							json = message.getMessageContentAsString();
-
 							// parse json string
-							obj = JSONValue.parse(json);
+							obj = JSONValue.parse(message);
 							JSONArray array = (JSONArray) obj;
 							List<Integer> tempCardinalityList = new ArrayList<>();
 
@@ -85,32 +71,15 @@ public class PriorityIndexer {
 					//Send message to the Global Image Sorter to retrieve the numberOfImageSorterNodes L^{(m)}
 					initializeGlobalImageSorter();
 				}
-			} catch (StorageException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			
 		}
 	}
 
 	private static void initializeGlobalImageSorter() {
-		try {
-			// Retrieve storage account from connection-string
-			// (The storage connection string needs to be changed in case of
-			// cloud infrastructure
-			// is used instead of emulator)
-			CloudStorageAccount storageAccount = CloudStorageAccount
-					.parse(storageConnectionString);
-
+		
 			// Create the queue client
-			CloudQueueClient queueClient = storageAccount
-					.createCloudQueueClient();
+			RabbitMQInstance rmq = new RabbitMQInstance(globalImageSorterQueue);
 
-			// Retrieve a reference to a queue
-			CloudQueue queue = queueClient
-					.getQueueReference(globalImageSorterQueue);
-
-			// Create the queue if it doesn't already exist
-			queue.createIfNotExist();
 
 			// Create the json object with the appropriate variables
 			JSONObject obj = new JSONObject();
@@ -119,20 +88,10 @@ public class PriorityIndexer {
 			obj.put("numOfImages", new Integer(numOfImages));
 
 			// Send the Message
-			CloudQueueMessage message = new CloudQueueMessage(
-					obj.toJSONString());
-			queue.addMessage(message);
+			rmq.sendMessage(obj.toString());
+			
 
-		} catch (InvalidKeyException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (StorageException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+
 	}
 
 	private static void sortImagesDescriptorVectors() {
@@ -147,73 +106,25 @@ public class PriorityIndexer {
 
 	private static void sendMessageToImageSorterNodes(int startImageId,
 			int stopImageId) {
-		try {
-			// Retrieve storage account from connection-string
-			// (The storage connection string needs to be changed in case of
-			// cloud infrastructure
-			// is used instead of emulator)
-			CloudStorageAccount storageAccount = CloudStorageAccount
-					.parse(storageConnectionString);
-
 			// Create the queue client
-			CloudQueueClient queueClient = storageAccount
-					.createCloudQueueClient();
-
-			// Retrieve a reference to a queue
-			CloudQueue queue = queueClient
-					.getQueueReference(imageSorterNodesQueue);
-
-			// Create the queue if it doesn't already exist
-			queue.createIfNotExist();
+			RabbitMQInstance rmq = new RabbitMQInstance(imageSorterNodesQueue);
+			
 
 			// Create the json object with the appropriate variables
 			JSONObject obj = new JSONObject();
 			obj.put("dataset", datasetName);
 			obj.put("startImageId", new Integer(startImageId));
 			obj.put("stopImageId", new Integer(stopImageId));
-
-			// Send the Message
-			CloudQueueMessage message = new CloudQueueMessage(
-					obj.toJSONString());
-			queue.addMessage(message);
-
-		} catch (InvalidKeyException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (StorageException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
+			
+			rmq.sendMessage(obj.toString());
+			rmq.sendMessage(obj.toString());
 	}
 
 	private static void storePriorityIndex() {
-		// Retrieve storage account from connection-string
-		CloudStorageAccount storageAccount;
+		HBaseInstance priorityHBase = new HBaseInstance(datasetName +"priority");
 		try {
-			storageAccount = CloudStorageAccount.parse(storageConnectionString);
-			// Create the table client.
-			CloudTableClient tableClient = storageAccount
-					.createCloudTableClient();
-
-			String json = JSONValue.toJSONString(priorityIndex);
-
-			PriorityIndexTableEntity entity = new PriorityIndexTableEntity(
-					datasetName, json);
-			TableOperation insertOperation = TableOperation.insert(entity);
-
-			tableClient.execute(priorityIndexTable, insertOperation);
-
-		} catch (InvalidKeyException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (StorageException e) {
+			priorityHBase.addToTable(priorityIndex, 1);
+		} catch (RetriesExhaustedWithDetailsException | InterruptedIOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
@@ -236,33 +147,5 @@ public class PriorityIndexer {
 
 		// Sort the cardinality Values of each dimension in descending order
 		Collections.sort(priorityIndex);
-	}
-
-	private static void initialize(boolean schedulerQueueFlag) {
-		// Retrieve storage account from connection-string
-		CloudStorageAccount storageAccount;
-		try {
-			storageAccount = CloudStorageAccount.parse(storageConnectionString);
-			// Create the queue client
-			CloudQueueClient queueClient = storageAccount
-					.createCloudQueueClient();
-
-			// Retrieve a reference to a queue
-			if (schedulerQueueFlag) {
-				schedulerQueue = queueClient
-						.getQueueReference(priorityIndexQueue);
-			} else {
-				dvcQueue = queueClient.getQueueReference(dvcPriorityIndexQueue);
-			}
-		} catch (InvalidKeyException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (StorageException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
 	}
 }

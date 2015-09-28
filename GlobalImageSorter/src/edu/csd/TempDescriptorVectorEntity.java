@@ -3,9 +3,9 @@ package edu.csd;
 public class TempDescriptorVectorEntity extends DescriptorVectorEntity {
 	private int imageSorterNode;
 
-	public TempDescriptorVectorEntity(String filename, int id, String vector,
+	public TempDescriptorVectorEntity(int id, String vector,
 			int imageSorterNode) {
-		super(filename, id, vector);
+		super(id, vector);
 		this.imageSorterNode = imageSorterNode;
 	}
 

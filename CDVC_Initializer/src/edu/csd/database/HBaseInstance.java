@@ -45,7 +45,8 @@ public class HBaseInstance {
 
 	public void addToTable(List<String> tuples, int counter) throws RetriesExhaustedWithDetailsException, InterruptedIOException {
 		for (int i = 0; i < tuples.size(); i++) {
-			Put tuple = new Put(Bytes.toBytes(counter++));
+			Put tuple = new Put(Bytes.toBytes(counter));
+			tuple.add(Bytes.toBytes("descriptorvector"), Bytes.toBytes("id"), Bytes.toBytes(counter++));
 			tuple.add(Bytes.toBytes("descriptorvector"), Bytes.toBytes("vector"), Bytes.toBytes(tuples.get(i)));
 			table.put(tuple);
 		}

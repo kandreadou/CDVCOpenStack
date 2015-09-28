@@ -17,6 +17,8 @@ import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.RetriesExhaustedWithDetailsException;
 import org.apache.hadoop.hbase.util.Bytes;
 
+import edu.csd.PriorityIndexValue;
+
 public class HBaseInstance {
 	private Configuration config;
 	private HTable table;
@@ -27,8 +29,7 @@ public class HBaseInstance {
 			HBaseAdmin admin = new HBaseAdmin(config);
 			HTableDescriptor tableDescriptor = new HTableDescriptor(
 					TableName.valueOf(tableName));
-			tableDescriptor
-					.addFamily(new HColumnDescriptor("descriptorvector"));
+			tableDescriptor.addFamily(new HColumnDescriptor("priorityindex"));
 			admin.createTable(tableDescriptor);
 			table = new HTable(config, tableName);
 		} catch (MasterNotRunningException e) {
@@ -43,13 +44,16 @@ public class HBaseInstance {
 		}
 	}
 
-	public void addToTable(List<String> tuples, int counter) throws RetriesExhaustedWithDetailsException, InterruptedIOException {
-		for (int i = 0; i < tuples.size(); i++) {
-			Put tuple = new Put(Bytes.toBytes(counter++));
-			tuple.add(Bytes.toBytes("descriptorvector"), Bytes.toBytes("vector"), Bytes.toBytes(tuples.get(i)));
-			table.put(tuple);
+
+	public void addToTable(List<PriorityIndexValue> priorityIndex, int counter) throws RetriesExhaustedWithDetailsException, InterruptedIOException {
+		String priorityIndexString = "";
+		for(int i = 0; i < priorityIndex.size() ;i++) {
+			priorityIndexString += priorityIndex.get(i).getDimension() + ",";
 		}
+		priorityIndexString = priorityIndexString.substring(0, priorityIndexString.length() - 1);
+		Put tuple = new Put(Bytes.toBytes(counter));
+		tuple.add(Bytes.toBytes("priorityIndex"), Bytes.toBytes("vector"), Bytes.toBytes(priorityIndexString));
+		table.put(tuple);
 		table.flushCommits();
 	}
-
 }
