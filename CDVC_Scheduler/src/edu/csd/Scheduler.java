@@ -36,10 +36,12 @@ public class Scheduler {
 					// Initialize the preprocessing step.
 					intializePreprocessing(fileName);
 				} else if (functionality == 2) {
+					String query = (String) jsonObject.get("query");
 					// Initialize the insertion step.
-					initializeInsertion(fileName, "n");
+					initializeInsertion(fileName, query);
 				} else if (functionality == 3) {
-					initializeInsertion(fileName, "y");
+					String query = (String) jsonObject.get("query");
+					initializeInsertion(fileName, query);
 				}
 			}
 

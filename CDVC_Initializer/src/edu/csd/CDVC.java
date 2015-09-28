@@ -55,12 +55,65 @@ public class CDVC {
 	}
 
 	private static void executeQuery() {
+		System.out
+				.println("Please insert the dataset name you need to execute the query");
+		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+		String datasetName = null;
+		try {
+			datasetName = br.readLine();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 
+		String query = null;
+		System.out.println("Please insert the query");
+		try {
+			query = br.readLine();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		// Create the json object with the appropriate variables
+		JSONObject obj = new JSONObject();
+		obj.put("file", datasetName);
+		obj.put("query", query);
+		obj.put("functionality", new Integer(3));
+
+		RabbitMQInstance rmq = new RabbitMQInstance();
+		rmq.sendMessage(obj.toJSONString());
 	}
 
 	private static void executeInsertion() {
-		// TODO Auto-generated method stub
+		System.out
+				.println("Please insert the dataset name you need to insert the vector");
+		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+		String datasetName = null;
+		try {
+			datasetName = br.readLine();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 
+		String query = null;
+		System.out.println("Please insert the vector");
+		try {
+			query = br.readLine();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		// Create the json object with the appropriate variables
+		JSONObject obj = new JSONObject();
+		obj.put("file", datasetName);
+		obj.put("query", query);
+		obj.put("functionality", new Integer(2));
+
+		RabbitMQInstance rmq = new RabbitMQInstance();
+		rmq.sendMessage(obj.toJSONString());
 	}
 
 	private static void executePreprocessing() {
@@ -90,37 +143,37 @@ public class CDVC {
 
 	private static void uploadDatasetFile(String datasetFile,
 			String cleanDatasetFileName) {
-			HBaseInstance hbase = new HBaseInstance(cleanDatasetFileName);
+		HBaseInstance hbase = new HBaseInstance(cleanDatasetFileName);
 
-			BufferedReader br = null;
+		BufferedReader br = null;
 
-			try {
+		try {
 
-				String sCurrentLine;
+			String sCurrentLine;
 
-				br = new BufferedReader(new FileReader(datasetFile));
+			br = new BufferedReader(new FileReader(datasetFile));
 
-				int counter = 0;
-				List<String> tuplesList = new ArrayList<>();
-				while ((sCurrentLine = br.readLine()) != null) {
-					counter++;
-					tuplesList.add(sCurrentLine);
-					if ((counter % 1000) == 0) {
-						hbase.addToTable(tuplesList, counter);
-						tuplesList.clear();
-					}
-				}
-
-			} catch (IOException e) {
-				e.printStackTrace();
-			} finally {
-				try {
-					if (br != null)
-						br.close();
-				} catch (IOException ex) {
-					ex.printStackTrace();
+			int counter = 0;
+			List<String> tuplesList = new ArrayList<>();
+			while ((sCurrentLine = br.readLine()) != null) {
+				counter++;
+				tuplesList.add(sCurrentLine);
+				if ((counter % 1000) == 0) {
+					hbase.addToTable(tuplesList, counter);
+					tuplesList.clear();
 				}
 			}
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				if (br != null)
+					br.close();
+			} catch (IOException ex) {
+				ex.printStackTrace();
+			}
+		}
 	}
 
 	private static String askForFile() {
