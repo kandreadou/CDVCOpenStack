@@ -1,26 +1,12 @@
 package edu.csd;
 
-import com.microsoft.windowsazure.services.table.client.TableServiceEntity;
-
-public class DescriptorVectorEntity extends TableServiceEntity{
-	private String fileName;
+public class DescriptorVectorEntity {
 	private int id;
 	private String vector;
-	
-	public DescriptorVectorEntity(String filename, int id, String vector) {
-		this.partitionKey = filename;
-		this.rowKey = Integer.toString(id);
-		this.fileName = filename;
+
+	public DescriptorVectorEntity(int id, String vector) {
 		this.id = id;
 		this.vector = vector;
-	}
-
-	public String getFileName() {
-		return fileName;
-	}
-
-	public void setFileName(String fileName) {
-		this.fileName = fileName;
 	}
 
 	public int getId() {
@@ -38,7 +24,5 @@ public class DescriptorVectorEntity extends TableServiceEntity{
 	public void setVector(String vector) {
 		this.vector = vector;
 	}
-	
-	
-	
+
 }

@@ -13,20 +13,21 @@ import com.rabbitmq.client.Envelope;
 import com.rabbitmq.client.MessageProperties;
 
 public class RabbitMQInstance {
-	private final String schedulerQueue = "schedulerqueue";
+	private final String queueName;
 	private ConnectionFactory factory;
 	private Connection connection;
 	private Channel channel;
 	private final String HOST = "localhost";
 	private String returnMessage;
 
-	public RabbitMQInstance() {
+	public RabbitMQInstance(String queueName) {
+		this.queueName = queueName;
 		factory = new ConnectionFactory();
 		factory.setHost(HOST);
 		try {
 			connection = factory.newConnection();
 			channel = connection.createChannel();
-			channel.queueDeclare(schedulerQueue, true, false, false, null);
+			channel.queueDeclare(queueName, true, false, false, null);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -61,7 +62,7 @@ public class RabbitMQInstance {
 			}
 		};
 		try {
-			channel.basicConsume(schedulerQueue, false, consumer);
+			channel.basicConsume(queueName, false, consumer);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -84,7 +85,7 @@ public class RabbitMQInstance {
 
 	public void sendMessage(String message) {
 		try {
-			channel.basicPublish("", schedulerQueue,
+			channel.basicPublish("", queueName,
 					MessageProperties.PERSISTENT_TEXT_PLAIN, message.getBytes());
 		} catch (IOException e) {
 			// TODO Auto-generated catch block

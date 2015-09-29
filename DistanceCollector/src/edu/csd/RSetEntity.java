@@ -1,14 +1,11 @@
 package edu.csd;
 
-import com.microsoft.windowsazure.services.table.client.TableServiceEntity;
 
-public class RSetEntity extends TableServiceEntity{
+public class RSetEntity{
 	private String datasetName;
 	private String R;
 	
 	public RSetEntity(String datasetName, String R) {
-		this.partitionKey = datasetName;
-		this.rowKey = datasetName;
 		this.datasetName = datasetName;
 		this.R = R;
 	}
