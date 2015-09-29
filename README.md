@@ -20,23 +20,21 @@ Our framework was implemented using the OpenStack Apis specifications in order t
 
 In our repository, we provide the source code of the proposed CDVC framework. In order to run our code, the following steps are required:
 
-1) download and install the OpenStack API in your computer;
+1) install your certificates into the Cloud Infrastructure;
 
-2) install your certificates into the Cloud Infrastructure;
+3) create the HBase configuration which will be used by each of our framework’s components. The HBase configuration should be included in the HBaseInstance.java on each of the CDVCOpenstack components;
 
-3) create the HBase configuration which will be used by each of our framework’s components. The HBase configuration should be included either as a separate cfg file (hbs.cfg) or it should be embedded into the experiment.cfg;
-
-4) create the RabbitMQ configuration. Similar to the HBase configuration, the RabbitMQ configuration should be included either as a separate cfg file (rbmq.cfg) or it should be embedded into the experiment.cfg;
+4) create the RabbitMQ configuration. Similar to the HBase configuration, the RabbitMQ configuration should be included in the RabbitMQInstance on each of the CDVCOpenstack components;
 
 5) create the Openstack Deployment projects for each of our framework's components. Each component is deployed in the Openstack compute node; 
 
-6) modify the numberOfDVCExtractorNodes variable in the experiment.cfg according to the deployed instances of the DVC Extractor instances; 
+6) modify the numberOfDVCExtractorNodes variable in the CDVC_Scheduler component; 
 
-7) modify the numberOfImageSorterNodes variable in the experiment.cfg according to the deployed instances of the Image Sorte instances;
+7) modify the numberOfImageSorterNodes variable in the PriorityIndexer component according to the deployed instances of the Image Sorte instances;
 
 8) if the numberOfDVCExtractorNodes and numberOfImageSorterNodes variables are assigned as 0, then the sequential approach is executed.
 
-We provide in our repository a CDVC_Initializer project which is the user interface of our framework. CDVC_Initializer should not deployed in the cloud but it should include the Openstack libraries, since it interacts with the Cloud infrastructure. Since the framework's components are deployed in the cloud, you need to execute the CDVC_Initializer to run our experiments.
+We provide in our repository a CDVC_Initializer project which is the user interface of our framework. CDVC_Initializer should not deployed in the cloud. Since the framework's components are deployed in the cloud, you need to execute the CDVC_Initializer to run our experiments.
 
 
 
