@@ -3,6 +3,7 @@ package edu.csd.database;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
@@ -23,13 +24,18 @@ public class HBaseInstance {
 
 	public HBaseInstance(String tableName) {
 		config = HBaseConfiguration.create();
+		config.setInt("timeout", 120000); 
+		config.set("hbase.master", "localhost"); 
+		
 		try {
 			HBaseAdmin admin = new HBaseAdmin(config);
 			HTableDescriptor tableDescriptor = new HTableDescriptor(
 					TableName.valueOf(tableName));
 			tableDescriptor
 					.addFamily(new HColumnDescriptor("descriptorvector"));
-			admin.createTable(tableDescriptor);
+			if(!admin.isTableAvailable(tableName)){
+				admin.createTable(tableDescriptor);
+			}
 			table = new HTable(config, tableName);
 		} catch (MasterNotRunningException e) {
 			// TODO Auto-generated catch block
@@ -43,12 +49,13 @@ public class HBaseInstance {
 		}
 	}
 
-	public void addToTable(List<String> tuples, int counter) throws RetriesExhaustedWithDetailsException, InterruptedIOException {
-		for (int i = 0; i < tuples.size(); i++) {
+	public void addToTable(Map<String, String> tuples, int counter) throws RetriesExhaustedWithDetailsException, InterruptedIOException {
+		for (String key: tuples.keySet()) {
 			Put tuple = new Put(Bytes.toBytes(counter));
-			tuple.add(Bytes.toBytes("descriptorvector"), Bytes.toBytes("id"), Bytes.toBytes(counter++));
-			tuple.add(Bytes.toBytes("descriptorvector"), Bytes.toBytes("vector"), Bytes.toBytes(tuples.get(i)));
+			tuple.add(Bytes.toBytes("descriptorvector"), Bytes.toBytes("id"), Bytes.toBytes(key));
+			tuple.add(Bytes.toBytes("descriptorvector"), Bytes.toBytes("vector"), Bytes.toBytes(tuples.get(key)));
 			table.put(tuple);
+			counter++;
 		}
 		table.flushCommits();
 	}

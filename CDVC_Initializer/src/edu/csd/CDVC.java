@@ -10,7 +10,9 @@ import java.io.InputStreamReader;
 import java.net.URISyntaxException;
 import java.security.InvalidKeyException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.json.simple.JSONObject;
 
@@ -22,6 +24,8 @@ public class CDVC {
 	public static final String storageConnectionString = "UseDevelopmentStorage=true";
 
 	private final static String filesBlobName = "datasetcontainer";
+	
+	public static final int vectorLength = 1024;
 
 	public static void main(String[] args) throws IOException {
 		char c = '0';
@@ -40,6 +44,8 @@ public class CDVC {
 			System.out
 					.println("\n----------------------------------------------------------------------------\n\n");
 			c = (char) System.in.read();
+			//Also read new line character and then process
+			System.in.read();
 			if (c == '1') {
 				executePreprocessing();
 			} else if (c == '2') {
@@ -122,8 +128,8 @@ public class CDVC {
 
 		// Request for the dataset file.
 		String datasetFile = askForFile();
-		String[] splitDatasetFilePath = datasetFile.split("\\");
-		String cleanDatasetFileName = splitDatasetFilePath[splitDatasetFilePath.length];
+		String[] splitDatasetFilePath = datasetFile.split("/");
+		String cleanDatasetFileName = splitDatasetFilePath[splitDatasetFilePath.length-1];
 
 		uploadDatasetFile(datasetFile, cleanDatasetFileName);
 		sendMessage(cleanDatasetFileName, 1);
@@ -149,20 +155,38 @@ public class CDVC {
 
 		try {
 
-			String sCurrentLine;
+			String line;
 
 			br = new BufferedReader(new FileReader(datasetFile));
-
+		
 			int counter = 0;
-			List<String> tuplesList = new ArrayList<>();
-			while ((sCurrentLine = br.readLine()) != null) {
+			Map<String, String> tuplesList = new HashMap<>();
+			while ((line = br.readLine()) != null) {
+				
+				String url = line.split("\t")[0];
+				String vectorString = line.split("\t")[1];
+				// remove [] sumbols
+				/*vectorString = vectorString.replace("[", "");
+				vectorString = vectorString.replace("]", "");
+				String[] elementsString = vectorString.split(", ");
+				if (elementsString.length != vectorLength) {
+					throw new Exception("Unexpected vector lenth!");
+				}
+				double[] vector = new double[vectorLength];
+				for (int i = 0; i < vectorLength; i++) {
+					vector[i] = Double.parseDouble(elementsString[i]);
+				}*/
+				
 				counter++;
-				tuplesList.add(sCurrentLine);
+				tuplesList.put(url, vectorString);
 				if ((counter % 1000) == 0) {
 					hbase.addToTable(tuplesList, counter);
 					tuplesList.clear();
 				}
 			}
+			//There are always some remaining tuples
+			hbase.addToTable(tuplesList, counter);
+			tuplesList.clear();
 
 		} catch (IOException e) {
 			e.printStackTrace();
